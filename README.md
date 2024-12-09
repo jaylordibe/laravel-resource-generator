@@ -16,16 +16,27 @@ This README would normally document whatever steps are necessary to get your app
 * Summary of set-up
     * To start the application
     ```
-    ./start.sh
+    docker compose up -d && docker exec -it laravel-resource-generator bash -c "composer update"
     ```
     * To stop the application
     ```
-    ./stop.sh
+    docker compose down
     ```
-* How to run tests
+* Validate composer.json
     ```
-    ./test.sh
+    docker exec -it laravel-resource-generator bash -c "composer validate"
     ```
+
+### How to use in your project? ###
+* To install
+    ```
+    composer require jaylordibe/laravel-resource-generator
+    ```
+* To generate a resource for User model
+    ```
+    php artisan app:generate-resource User
+    ```
+
 ### Contribution guidelines ###
 
 * Writing tests
