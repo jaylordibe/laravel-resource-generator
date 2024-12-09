@@ -1,0 +1,17 @@
+services:
+  laravel-resource-generator:
+    image: jaylordibe/nginx-php
+    container_name: laravel-resource-generator
+    restart: unless-stopped
+    tty: true
+    platform: linux/x86_64
+    ports:
+      - "9000:80"
+    volumes:
+      - .:/var/www/html
+    working_dir: /var/www/html
+    networks:
+      - laravel-resource-generator-network
+networks:
+  laravel-resource-generator-network:
+    driver: bridge
