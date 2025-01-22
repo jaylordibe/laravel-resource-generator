@@ -64,16 +64,25 @@ class {{modelName}}Repository
      */
     public function getPaginated({{modelName}}FilterData ${{modelNameCamelCase}}FilterData): LengthAwarePaginator
     {
-        ${{modelNameCamelCasePlural}} = {{modelName}}::with(${{modelNameCamelCase}}FilterData->meta->relations);
+        ${{modelNameCamelCase}}Builder = {{modelName}}::query();
 
-        if (!empty(${{modelNameCamelCase}}FilterData->id)) {
-            ${{modelNameCamelCasePlural}}->where('id', ${{modelNameCamelCase}}FilterData->id);
+        if (!empty(${{modelNameCamelCase}}FilterData->meta->relations)) {
+            ${{modelNameCamelCase}}Builder->with(${{modelNameCamelCase}}FilterData->meta->relations);
         }
 
-        return ${{modelNameCamelCasePlural}}->orderBy(
-            ${{modelNameCamelCase}}FilterData->meta->sortField,
-            ${{modelNameCamelCase}}FilterData->meta->sortDirection
-        )->paginate(${{modelNameCamelCase}}FilterData->meta->perPage);
+        if (!empty(${{modelNameCamelCase}}FilterData->id)) {
+            ${{modelNameCamelCase}}Builder->where('id', ${{modelNameCamelCase}}FilterData->id);
+        }
+
+        if (!empty(${{modelNameCamelCase}}FilterData->meta->sortField)) {
+            if (empty(${{modelNameCamelCase}}FilterData->meta->sortDirection)) {
+                ${{modelNameCamelCase}}Builder->orderBy(${{modelNameCamelCase}}FilterData->meta->sortField);
+            } else {
+                ${{modelNameCamelCase}}Builder->orderBy(${{modelNameCamelCase}}FilterData->meta->sortField, ${{modelNameCamelCase}}FilterData->meta->sortDirection);
+            }
+        }
+
+        return ${{modelNameCamelCase}}Builder->paginate(${{modelNameCamelCase}}FilterData->meta->perPage);
     }
 
     /**
