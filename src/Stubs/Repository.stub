@@ -70,6 +70,10 @@ class {{modelName}}Repository
             ${{modelNameCamelCase}}Builder->with(${{modelNameCamelCase}}FilterData->meta->relations);
         }
 
+        if (!empty(${{modelNameCamelCase}}FilterData->meta->columns)) {
+            ${{modelNameCamelCase}}Builder->select(${{modelNameCamelCase}}FilterData->meta->columns);
+        }
+
         if (!empty(${{modelNameCamelCase}}FilterData->id)) {
             ${{modelNameCamelCase}}Builder->where('id', ${{modelNameCamelCase}}FilterData->id);
         }
