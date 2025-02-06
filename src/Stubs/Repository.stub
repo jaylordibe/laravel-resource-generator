@@ -79,11 +79,7 @@ class {{modelName}}Repository
         }
 
         if (!empty(${{modelNameCamelCase}}FilterData->meta->sortField)) {
-            if (empty(${{modelNameCamelCase}}FilterData->meta->sortDirection)) {
-                ${{modelNameCamelCase}}Builder->orderBy(${{modelNameCamelCase}}FilterData->meta->sortField);
-            } else {
-                ${{modelNameCamelCase}}Builder->orderBy(${{modelNameCamelCase}}FilterData->meta->sortField, ${{modelNameCamelCase}}FilterData->meta->sortDirection);
-            }
+            ${{modelNameCamelCase}}Builder->orderBy(${{modelNameCamelCase}}FilterData->meta->sortField, ${{modelNameCamelCase}}FilterData->meta->sortDirection ?? AppConstant::DEFAULT_SORT_DIRECTION);
         }
 
         return ${{modelNameCamelCase}}Builder->paginate(${{modelNameCamelCase}}FilterData->meta->perPage);
