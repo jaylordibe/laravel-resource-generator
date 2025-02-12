@@ -26,9 +26,7 @@ class {{modelName}}Repository
         ${{modelNameCamelCase}} ??= new {{modelName}}();
         ${{modelNameCamelCase}}->save();
 
-        ${{modelNameCamelCase}}->refresh();
-
-        return ${{modelNameCamelCase}};
+        return ${{modelNameCamelCase}}->refresh();
     }
 
     /**
