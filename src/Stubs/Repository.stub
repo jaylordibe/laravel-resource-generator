@@ -74,10 +74,6 @@ class {{modelName}}Repository
             ${{modelNameCamelCase}}Builder->select(${{modelNameCamelCase}}FilterData->meta->columns);
         }
 
-        if (!empty(${{modelNameCamelCase}}FilterData->id)) {
-            ${{modelNameCamelCase}}Builder->where('id', ${{modelNameCamelCase}}FilterData->id);
-        }
-
         if (!empty(${{modelNameCamelCase}}FilterData->meta->sortField)) {
             ${{modelNameCamelCase}}Builder->orderBy(${{modelNameCamelCase}}FilterData->meta->sortField, ${{modelNameCamelCase}}FilterData->meta->sortDirection ?? AppConstant::DEFAULT_SORT_DIRECTION);
         }
