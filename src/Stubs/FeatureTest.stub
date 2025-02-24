@@ -19,7 +19,7 @@ class {{modelName}}FeatureTest extends TestCase
         $response = $this->withToken($token)->post($this->resource, $payload);
 
         $expected = [];
-        $response->assertOk()->assertJson($expected);
+        $response->assertCreated()->assertJson($expected);
     }
 
     #[Test]
