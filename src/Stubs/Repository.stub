@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Constants\AppConstant;
 use App\Data\{{modelName}}Data;
 use App\Data\{{modelName}}FilterData;
 use App\Models\{{modelName}};
