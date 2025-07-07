@@ -6,10 +6,8 @@ use App\Constants\AppConstant;
 use App\Data\{{modelName}}Data;
 use App\Data\{{modelName}}FilterData;
 use App\Models\{{modelName}};
-use Exception;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class {{modelName}}Repository
 {
@@ -61,7 +59,7 @@ class {{modelName}}Repository
      *
      * @param {{modelName}}FilterData ${{modelNameCamelCase}}FilterData
      *
-     * @return LengthAwarePaginator
+     * @return LengthAwarePaginator<{{modelName}}>
      */
     public function getPaginated({{modelName}}FilterData ${{modelNameCamelCase}}FilterData): LengthAwarePaginator
     {
@@ -91,18 +89,7 @@ class {{modelName}}Repository
      */
     public function delete(int $id): bool
     {
-        ${{modelNameCamelCase}} = $this->findById($id);
-
-        if (empty(${{modelNameCamelCase}})) {
-            return false;
-        }
-
-        try {
-            return (bool) ${{modelNameCamelCase}}->delete();
-        } catch (Exception $e) {
-            Log::error("Delete {{modelNameUpperWordSpaceCase}} Exception: {$e->getMessage()}");
-            return false;
-        }
+        return {{modelName}}::destroy($id) > 0;
     }
 
 }

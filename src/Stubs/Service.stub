@@ -6,7 +6,7 @@ use App\Data\{{modelName}}Data;
 use App\Data\{{modelName}}FilterData;
 use App\Data\ServiceResponseData;
 use App\Repositories\{{modelName}}Repository;
-use App\Utils\ServiceResponseUtil;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class {{modelName}}Service
 {
@@ -22,17 +22,18 @@ class {{modelName}}Service
      *
      * @param {{modelName}}Data ${{modelNameCamelCase}}Data
      *
-     * @return ServiceResponseData
+     * @return {{modelName}}|null
+     * @throws BadRequestException
      */
-    public function create({{modelName}}Data ${{modelNameCamelCase}}Data): ServiceResponseData
+    public function create({{modelName}}Data ${{modelNameCamelCase}}Data): ?{{modelName}}
     {
         ${{modelNameCamelCase}} = $this->{{modelNameCamelCase}}Repository->save(${{modelNameCamelCase}}Data);
 
         if (empty(${{modelNameCamelCase}})) {
-            return ServiceResponseUtil::error('Failed to create {{modelNameSpaceCase}}.');
+            throw new BadRequestException('Failed to create {{modelNameSpaceCase}}.');
         }
 
-        return ServiceResponseUtil::success('{{modelNameUpperFirstSpaceCase}} successfully added.', ${{modelNameCamelCase}});
+        return ${{modelNameCamelCase}};
     }
 
     /**
@@ -40,13 +41,11 @@ class {{modelName}}Service
      *
      * @param {{modelName}}FilterData ${{modelNameCamelCase}}FilterData
      *
-     * @return ServiceResponseData
+     * @return LengthAwarePaginator<{{modelName}}>
      */
-    public function getPaginated({{modelName}}FilterData ${{modelNameCamelCase}}FilterData): ServiceResponseData
+    public function getPaginated({{modelName}}FilterData ${{modelNameCamelCase}}FilterData): LengthAwarePaginator
     {
-        return ServiceResponseUtil::map(
-            $this->{{modelNameCamelCase}}Repository->getPaginated(${{modelNameCamelCase}}FilterData)
-        );
+        return $this->{{modelNameCamelCase}}Repository->getPaginated(${{modelNameCamelCase}}FilterData);
     }
 
     /**
@@ -55,13 +54,18 @@ class {{modelName}}Service
      * @param int $id
      * @param array $relations
      *
-     * @return ServiceResponseData
+     * @return {{modelName}}|null
+     * @throws BadRequestException
      */
-    public function getById(int $id, array $relations = []): ServiceResponseData
+    public function getById(int $id, array $relations = []): ?{{modelName}}
     {
-        return ServiceResponseUtil::map(
-            $this->{{modelNameCamelCase}}Repository->findById($id, $relations)
-        );
+        ${{modelNameCamelCase}} = $this->{{modelNameCamelCase}}Repository->findById($id, $relations);
+
+        if (empty(${{modelNameCamelCase}})) {
+            throw new BadRequestException('{{modelNameUpperFirstSpaceCase}} not found.');
+        }
+
+        return ${{modelNameCamelCase}};
     }
 
     /**
@@ -69,23 +73,24 @@ class {{modelName}}Service
      *
      * @param {{modelName}}Data ${{modelNameCamelCase}}Data
      *
-     * @return ServiceResponseData
+     * @return {{modelName}}|null
+     * @throws BadRequestException
      */
-    public function update({{modelName}}Data ${{modelNameCamelCase}}Data): ServiceResponseData
+    public function update({{modelName}}Data ${{modelNameCamelCase}}Data): ?{{modelName}}
     {
         ${{modelNameCamelCase}} = $this->{{modelNameCamelCase}}Repository->findById(${{modelNameCamelCase}}Data->id);
 
         if (empty(${{modelNameCamelCase}})) {
-            return ServiceResponseUtil::error('Failed to update {{modelNameSpaceCase}}.');
+            throw new BadRequestException('Failed to update {{modelNameSpaceCase}}.');
         }
 
         ${{modelNameCamelCase}} = $this->{{modelNameCamelCase}}Repository->save(${{modelNameCamelCase}}Data, ${{modelNameCamelCase}});
 
         if (empty(${{modelNameCamelCase}})) {
-            return ServiceResponseUtil::error('Failed to update {{modelNameSpaceCase}}.');
+            throw new BadRequestException('Failed to update {{modelNameSpaceCase}}.');
         }
 
-        return ServiceResponseUtil::success('{{modelNameUpperFirstSpaceCase}} successfully updated.', ${{modelNameCamelCase}});
+        return ${{modelNameCamelCase}};
     }
 
     /**
@@ -93,23 +98,18 @@ class {{modelName}}Service
      *
      * @param int $id
      *
-     * @return ServiceResponseData
+     * @return bool
+     * @throws BadRequestException
      */
-    public function delete(int $id): ServiceResponseData
+    public function delete(int $id): bool
     {
-        ${{modelNameCamelCase}} = $this->{{modelNameCamelCase}}Repository->findById($id);
-
-        if (empty(${{modelNameCamelCase}})) {
-            return ServiceResponseUtil::error('Failed to delete {{modelNameSpaceCase}}.');
-        }
-
         $isDeleted = $this->{{modelNameCamelCase}}Repository->delete($id);
 
         if (!$isDeleted) {
-            return ServiceResponseUtil::error('Failed to delete {{modelNameSpaceCase}}.');
+            throw new BadRequestException('Failed to delete {{modelNameSpaceCase}}.');
         }
 
-        return ServiceResponseUtil::success('{{modelNameUpperFirstSpaceCase}} successfully deleted.');
+        return true;
     }
 
 }
