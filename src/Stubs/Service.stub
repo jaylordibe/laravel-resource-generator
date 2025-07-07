@@ -4,7 +4,8 @@ namespace App\Services;
 
 use App\Data\{{modelName}}Data;
 use App\Data\{{modelName}}FilterData;
-use App\Data\ServiceResponseData;
+use App\Exceptions\BadRequestException;
+use App\Models\{{modelName}};
 use App\Repositories\{{modelName}}Repository;
 use Illuminate\Pagination\LengthAwarePaginator;
 
