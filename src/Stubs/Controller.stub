@@ -37,7 +37,7 @@ class {{modelName}}Controller extends Controller
     }
 
     /**
-     * Get paginated {{modelNameSpaceCase}}s.
+     * Get paginated {{modelNameSpaceCasePlural}}.
      *
      * @param GenericRequest $request
      *

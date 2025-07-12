@@ -38,7 +38,7 @@ class {{modelName}}Service
     }
 
     /**
-     * Get paginated {{modelNameSpaceCase}}s.
+     * Get paginated {{modelNameSpaceCasePlural}}.
      *
      * @param {{modelName}}FilterData ${{modelNameCamelCase}}FilterData
      *
