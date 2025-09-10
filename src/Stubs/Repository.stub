@@ -101,7 +101,7 @@ class {{modelName}}Repository
      */
     public function getAll({{modelName}}FilterData ${{modelNameCamelCase}}FilterData): Collection
     {
-        return $this->applyFilters({{modelName}}::query(), ${{modelNameCamelCase}}FilterData)->paginate(${{modelNameCamelCase}}FilterData->meta->perPage);
+        return $this->applyFilters({{modelName}}::query(), ${{modelNameCamelCase}}FilterData)->get();
     }
 
     /**
