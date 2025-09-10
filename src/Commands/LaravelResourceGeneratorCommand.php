@@ -332,6 +332,7 @@ class LaravelResourceGeneratorCommand extends Command
         \tRoute::prefix('{$resourceName}')->group(function () {
             \tRoute::post('/', [{$controllerClassName}, 'create']);
             \tRoute::get('/', [{$controllerClassName}, 'getPaginated']);
+            \tRoute::get('/all', [{$controllerClassName}, 'getAll']);
             \tRoute::get('/{{$modelIdName}}', [{$controllerClassName}, 'getById'])->where('{$modelIdName}', RoutePatternConstant::NUMERIC);
             \tRoute::put('/{{$modelIdName}}', [{$controllerClassName}, 'update'])->where('{$modelIdName}', RoutePatternConstant::NUMERIC);
             \tRoute::delete('/{{$modelIdName}}', [{$controllerClassName}, 'delete'])->where('{$modelIdName}', RoutePatternConstant::NUMERIC);

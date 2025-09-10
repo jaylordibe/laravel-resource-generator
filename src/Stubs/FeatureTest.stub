@@ -50,6 +50,19 @@ class {{modelName}}FeatureTest extends TestCase
     }
 
     #[Test]
+    public function testGetAll(): void
+    {
+        $token = $this->loginSystemAdminUser();
+        {{modelName}}::factory()->count(15)->create();
+        $response = $this->withToken($token)->get("{$this->resource}/all");
+        $response->assertOk();
+
+        $data = $response->json();
+        $this->assertIsArray($data);
+        $this->assertNotEmpty($data);
+    }
+
+    #[Test]
     public function testGetById(): void
     {
         $token = $this->loginSystemAdminUser();

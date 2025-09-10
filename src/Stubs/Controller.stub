@@ -52,6 +52,21 @@ class {{modelName}}Controller extends Controller
     }
 
     /**
+     * Get all {{modelNameSpaceCasePlural}}.
+     *
+     * @param GenericRequest $request
+     *
+     * @return JsonResponse|JsonResource
+     */
+    public function getAll(GenericRequest $request): JsonResponse|JsonResource
+    {
+        ${{modelNameCamelCase}}FilterData = {{modelName}}Request::createFrom($request)->toFilterData();
+        ${{modelNameCamelCasePlural}} = $this->{{modelNameCamelCase}}Service->getAll(${{modelNameCamelCase}}FilterData);
+
+        return ResponseUtil::resource({{modelName}}Resource::class, ${{modelNameCamelCasePlural}});
+    }
+
+    /**
      * Get {{modelNameSpaceCase}} by id.
      *
      * @param GenericRequest $request
