@@ -63,7 +63,7 @@ class {{modelName}}Repository
      *
      * @return Builder
      */
-    public function applyFilters(Builder ${{modelNameCamelCase}}Builder, {{modelName}}FilterData ${{modelNameCamelCase}}FilterData): LengthAwarePaginator
+    public function applyFilters(Builder ${{modelNameCamelCase}}Builder, {{modelName}}FilterData ${{modelNameCamelCase}}FilterData): Builder
     {
         if (!empty(${{modelNameCamelCase}}FilterData->meta->relations)) {
             ${{modelNameCamelCase}}Builder->with(${{modelNameCamelCase}}FilterData->meta->relations);
