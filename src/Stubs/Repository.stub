@@ -2,7 +2,6 @@
 
 namespace App\Repositories;
 
-use App\Constants\AppConstant;
 use App\Data\{{modelName}}Data;
 use App\Data\{{modelName}}FilterData;
 use App\Models\{{modelName}};
@@ -74,7 +73,7 @@ class {{modelName}}Repository
         }
 
         if (!empty(${{modelNameCamelCase}}FilterData->meta->sortField)) {
-            ${{modelNameCamelCase}}Builder->orderBy(${{modelNameCamelCase}}FilterData->meta->sortField, ${{modelNameCamelCase}}FilterData->meta->sortDirection ?? AppConstant::DEFAULT_SORT_DIRECTION);
+            ${{modelNameCamelCase}}Builder->orderBy(${{modelNameCamelCase}}FilterData->meta->sortField, ${{modelNameCamelCase}}FilterData->meta->sortDirection);
         }
 
         return ${{modelNameCamelCase}}Builder;
