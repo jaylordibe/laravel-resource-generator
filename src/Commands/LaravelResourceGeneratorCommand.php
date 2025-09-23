@@ -333,9 +333,9 @@ class LaravelResourceGeneratorCommand extends Command
             \tRoute::post('/', [{$controllerClassName}, 'create']);
             \tRoute::get('/', [{$controllerClassName}, 'getPaginated']);
             \tRoute::get('/all', [{$controllerClassName}, 'getAll']);
-            \tRoute::get('/{{$modelIdName}}', [{$controllerClassName}, 'getById'])->where('{$modelIdName}', RoutePatternConstant::NUMERIC);
-            \tRoute::put('/{{$modelIdName}}', [{$controllerClassName}, 'update'])->where('{$modelIdName}', RoutePatternConstant::NUMERIC);
-            \tRoute::delete('/{{$modelIdName}}', [{$controllerClassName}, 'delete'])->where('{$modelIdName}', RoutePatternConstant::NUMERIC);
+            \tRoute::get('/{{$modelIdName}}', [{$controllerClassName}, 'getById'])->where('{$modelIdName}', config('custom.numeric_regex'));
+            \tRoute::put('/{{$modelIdName}}', [{$controllerClassName}, 'update'])->where('{$modelIdName}', config('custom.numeric_regex'));
+            \tRoute::delete('/{{$modelIdName}}', [{$controllerClassName}, 'delete'])->where('{$modelIdName}', config('custom.numeric_regex'));
         \t});
         ROUTES;
 
