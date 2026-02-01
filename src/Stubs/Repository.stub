@@ -127,4 +127,40 @@ class {{modelName}}Repository
         return {{modelName}}::destroy($id) > 0;
     }
 
+    /**
+     * Delete {{modelNameSpaceCasePlural}}.
+     *
+     * @param array $ids
+     *
+     * @return bool
+     */
+    public function deleteMultiple(array $ids): bool
+    {
+        return {{modelName}}::destroy($ids) > 0;
+    }
+
+    /**
+     * Force delete {{modelNameSpaceCase}}.
+     *
+     * @param int $id
+     *
+     * @return bool
+     */
+    public function forceDelete(int $id): bool
+    {
+        return {{modelName}}::forceDestroy($id) > 0;
+    }
+
+    /**
+     * Force delete {{modelNameSpaceCasePlural}}.
+     *
+     * @param array $ids
+     *
+     * @return bool
+     */
+    public function forceDeleteMultiple(array $ids): bool
+    {
+        return {{modelName}}::forceDestroy($ids) > 0;
+    }
+
 }
