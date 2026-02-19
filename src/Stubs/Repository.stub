@@ -116,6 +116,18 @@ class {{modelName}}Repository
     }
 
     /**
+     * Count {{modelNameSpaceCasePlural}}.
+     *
+     * @param {{modelName}}FilterData ${{modelNameCamelCase}}FilterData
+     *
+     * @return int
+     */
+    public function count({{modelName}}FilterData ${{modelNameCamelCase}}FilterData): int
+    {
+        return $this->applyFilters({{modelName}}::query(), ${{modelNameCamelCase}}FilterData)->count();
+    }
+
+    /**
      * Delete {{modelNameSpaceCase}}.
      *
      * @param int $id
