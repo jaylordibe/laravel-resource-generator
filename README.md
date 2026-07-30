@@ -1,49 +1,78 @@
-# LARAVEL RESOURCE GENERATOR #
+# Laravel Resource Generator
 
-This README would normally document whatever steps are necessary to get your application up and running.
+An Artisan command that scaffolds a complete CRUD resource across a strict layered architecture —
+model, migration, factory, request, data objects, resource, controller, service, repository, tests,
+and routes — in a single step.
 
-### What is this repository for? ###
+> This package generates code for a **specific layered API architecture**. The stubs assume base
+> classes such as `BaseModel`, `BaseRequest`, `BaseData`, a `DatabaseTableConstant`, a `MetaData`
+> query envelope, and a `BadRequestException` service convention. It is intended for projects built
+> on that template rather than as a general-purpose scaffolder.
 
-* Quick summary
-    * This repository is the Laravel Resource Generator.
-* Version
-    * v1.0
+## Compatibility
 
-### How do I get set up? ###
+| Package | Laravel | Branch |
+|---------|---------|--------|
+| `^3.0`  | 13.x    | `laravel-13.x` |
+| `^2.0`  | 12.x    | `laravel-12.x` |
+| `^1.0`  | 11.x    | `laravel-11.x` |
 
-* Dependencies
-    * [Docker](https://docs.docker.com/get-docker/)
-* Summary of set-up
-    * To start the application
-    ```
-    docker compose up -d && docker exec -it laravel-resource-generator bash -c "composer update"
-    ```
-    * To stop the application
-    ```
-    docker compose down
-    ```
-* Validate composer.json
-    ```
-    docker exec -it laravel-resource-generator bash -c "composer validate"
-    ```
+Requires PHP 8.3+. Each major line targets a single Laravel major; older branches are frozen at the
+cut and are not backported.
 
-### How to use in your project? ###
-* To install
-    ```
-    composer require jaylordibe/laravel-resource-generator
-    ```
-* To generate a resource for User model
-    ```
-    php artisan app:generate-resource User
-    ```
+## Installation
 
-### Contribution guidelines ###
+```bash
+composer require jaylordibe/laravel-resource-generator
+```
 
-* Writing tests
-* Code review
-* Other guidelines
+The service provider is auto-discovered; the command registers itself when running in console.
 
-### Who do I talk to? ###
+## Usage
 
-* Repo owner or admin
-* Other community or team contact
+```bash
+php artisan app:generate-resource AppVersion
+```
+
+The model name must be StudlyCase and alphanumeric. It is used to build both class names and file
+paths, so anything else is rejected.
+
+### What it generates
+
+| Layer | Path |
+|-------|------|
+| Model | `app/Models/{Model}.php` |
+| Migration | `database/migrations/{timestamp}_create_{table}_table.php` |
+| Factory | `database/factories/{Model}Factory.php` |
+| Request | `app/Http/Requests/{Model}Request.php` |
+| Resource | `app/Http/Resources/{Model}Resource.php` |
+| Data | `app/Data/{Model}Data.php` |
+| Filter data | `app/Data/{Model}FilterData.php` |
+| Controller | `app/Http/Controllers/{Model}Controller.php` |
+| Service | `app/Services/{Model}Service.php` |
+| Repository | `app/Repositories/{Model}Repository.php` |
+| Unit test | `tests/Unit/{Model}UnitTest.php` |
+| Feature test | `tests/Feature/{Model}FeatureTest.php` |
+
+It also registers the table name on `app/Constants/DatabaseTableConstant.php` and appends the CRUD
+routes to `routes/api.php`.
+
+### Re-running
+
+The command is safe to re-run. Existing files are skipped, and the table constant and route block
+are only added when they are not already present, so a second run tops up any missing layer without
+duplicating anything.
+
+Exit code is `0` on success and `1` when generation fails, so it is safe to use in scripts.
+
+## Development
+
+```bash
+docker compose up -d
+docker exec -it laravel-resource-generator bash -c "composer update"
+docker exec -it laravel-resource-generator bash -c "vendor/bin/phpunit"
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).

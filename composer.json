@@ -2,6 +2,7 @@
     "name": "jaylordibe/laravel-resource-generator",
     "description": "A resource generator for Laravel projects.",
     "type": "library",
+    "keywords": ["laravel", "generator", "scaffold", "crud", "artisan"],
     "license": "MIT",
     "authors": [
         {
@@ -9,6 +10,10 @@
             "email": "developer.jayibe@gmail.com"
         }
     ],
+    "support": {
+        "issues": "https://github.com/jaylordibe/laravel-resource-generator/issues",
+        "source": "https://github.com/jaylordibe/laravel-resource-generator"
+    },
     "require": {
         "php": "^8.3",
         "illuminate/support": "^13.0",
@@ -22,11 +27,24 @@
             "JayLordIbe\\LaravelResourceGenerator\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "JayLordIbe\\LaravelResourceGenerator\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
     "extra": {
         "laravel": {
             "providers": [
                 "JayLordIbe\\LaravelResourceGenerator\\Providers\\LaravelResourceGeneratorServiceProvider"
             ]
         }
-    }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }

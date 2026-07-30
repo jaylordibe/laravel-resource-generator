@@ -4,7 +4,8 @@ namespace JayLordIbe\LaravelResourceGenerator\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
+use JayLordIbe\LaravelResourceGenerator\Support\ModelName;
+use JayLordIbe\LaravelResourceGenerator\Support\PhpSourceEditor;
 
 class LaravelResourceGeneratorCommand extends Command
 {
@@ -14,7 +15,7 @@ class LaravelResourceGeneratorCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'app:generate-resource {model}';
+    protected $signature = 'app:generate-resource {model : The StudlyCase model name, e.g. AppVersion}';
 
     /**
      * The console command description.
@@ -24,411 +25,302 @@ class LaravelResourceGeneratorCommand extends Command
     protected $description = 'Generate resources for a model';
 
     /**
-     * Execute the console command.
+     * Layers generated on every run, as stub name => path relative to the app root.
+     *
+     * "{{modelName}}" is substituted before the path is resolved.
+     *
+     * @var array<string, string>
      */
-    public function handle(): void
+    private const array RESOURCE_LAYERS = [
+        'Factory' => 'database/factories/{{modelName}}Factory.php',
+        'Request' => 'app/Http/Requests/{{modelName}}Request.php',
+        'Resource' => 'app/Http/Resources/{{modelName}}Resource.php',
+        'Data' => 'app/Data/{{modelName}}Data.php',
+        'FilterData' => 'app/Data/{{modelName}}FilterData.php',
+        'UnitTest' => 'tests/Unit/{{modelName}}UnitTest.php',
+        'FeatureTest' => 'tests/Feature/{{modelName}}FeatureTest.php',
+        'Controller' => 'app/Http/Controllers/{{modelName}}Controller.php',
+        'Service' => 'app/Services/{{modelName}}Service.php',
+        'Repository' => 'app/Repositories/{{modelName}}Repository.php'
+    ];
+
+    /**
+     * Execute the console command.
+     *
+     * @return int
+     */
+    public function handle(): int
     {
-        $modelName = (string) $this->argument('model');
+        $modelName = ModelName::resolve((string) $this->argument('model'));
 
-        if (empty($modelName)) {
-            $this->error('Model name is required.');
+        if ($modelName === null) {
+            $this->error('Model name must be alphanumeric and start with a letter, e.g. "AppVersion".');
 
-            return;
+            return self::FAILURE;
         }
 
         $this->info(PHP_EOL . "Generating resources for {$modelName} model..." . PHP_EOL);
 
-        if (!File::exists(app_path("Models/{$modelName}.php"))) {
-            $this->createModelFile($modelName);
-            $this->createMigrationFile($modelName);
-            $this->addRoute($modelName);
+        // The model, its migration and its routes are created once. Re-running for an
+        // existing model tops up the remaining layers without touching them.
+        if (!File::exists(base_path("app/Models/{$modelName}.php"))
+            && !($this->createModelFile($modelName)
+                && $this->createMigrationFile($modelName)
+                && $this->addRoutes($modelName))) {
+            return self::FAILURE;
         }
 
-        $this->createFactoryFile($modelName);
-        $this->createRequestFile($modelName);
-        $this->createResourceFile($modelName);
-        $this->createDataFile($modelName);
-        $this->createTestFile($modelName);
-        $this->createControllerFile($modelName);
-        $this->createServiceFile($modelName);
-        $this->createRepositoryFile($modelName);
+        foreach (self::RESOURCE_LAYERS as $stubName => $relativePath) {
+            if (!$this->createFileFromStub($modelName, $stubName, $relativePath)) {
+                return self::FAILURE;
+            }
+        }
 
         $this->info(PHP_EOL . "Done generating resources for {$modelName} model" . PHP_EOL);
+
+        return self::SUCCESS;
     }
 
     /**
-     * Create model file.
+     * Create the model file.
      *
      * @param string $modelName
      *
-     * @return void
+     * @return bool
      */
-    private function createModelFile(string $modelName): void
+    private function createModelFile(string $modelName): bool
     {
-        $stubName = 'Model';
-        $path = app_path("Models/{$modelName}.php");
-
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
-        }
+        return $this->createFileFromStub($modelName, 'Model', "app/Models/{$modelName}.php");
     }
 
     /**
-     * Create migration file.
+     * Create the migration file and register its table name constant.
      *
      * @param string $modelName
      *
-     * @return void
+     * @return bool
      */
-    private function createMigrationFile(string $modelName): void
+    private function createMigrationFile(string $modelName): bool
     {
-        $stubName = 'Migration';
-        $migrationFileName = date('Y_m_d_His') . '_create_' . Str::lower(Str::snake(Str::plural($modelName)));
-        $path = database_path("/migrations/{$migrationFileName}_table.php");
+        $tableName = ModelName::tableName($modelName);
 
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
+        // The filename carries a timestamp, so an existing migration for this table
+        // can never be matched by path. Match on the table instead, or a re-run would
+        // add a second create-table migration and break `php artisan migrate`.
+        if ($this->migrationExistsForTable($tableName)) {
+            $this->line("A migration for the {$tableName} table already exists. Skipping...");
+
+            return $this->addDatabaseTableConstant($modelName);
         }
 
-        $databaseTableConstantName = Str::upper(Str::snake(Str::plural($modelName)));
-        $databaseTableConstantValue = Str::lower(Str::snake(Str::plural($modelName)));
-        $databaseTableConstantTemplate = <<<DATABASETABLECONSTANTS
-        \tconst string {$databaseTableConstantName} = '{$databaseTableConstantValue}';
-        DATABASETABLECONSTANTS;
+        $migrationFileName = date('Y_m_d_His') . "_create_{$tableName}_table.php";
 
-        $databaseTableConstantFilePath = app_path('Constants/DatabaseTableConstant.php');
-        $fileContents = file_get_contents($databaseTableConstantFilePath);
-
-        // Find the position of the closing tag of the auth:api middleware group
-        $closingMiddlewareTagPosition = strrpos($fileContents, "}");
-
-        if ($closingMiddlewareTagPosition !== false) {
-            // Insert the new routes before the closing tag
-            $newFileContents = substr_replace($fileContents, $databaseTableConstantTemplate . "\n", $closingMiddlewareTagPosition - 1, 0);
-
-            // Write the new content back into the file
-            file_put_contents($databaseTableConstantFilePath, $newFileContents);
-            $this->info("{$databaseTableConstantFilePath} successfully updated" . PHP_EOL);
-        } else {
-            echo "The position to insert the new database table constant value was not found.";
+        if (!$this->createFileFromStub($modelName, 'Migration', "database/migrations/{$migrationFileName}")) {
+            return false;
         }
+
+        return $this->addDatabaseTableConstant($modelName);
     }
 
     /**
-     * Create factory file.
+     * Determine whether a create-table migration already exists for a table.
      *
-     * @param string $modelName
+     * @param string $tableName
      *
-     * @return void
+     * @return bool
      */
-    private function createFactoryFile(string $modelName): void
+    private function migrationExistsForTable(string $tableName): bool
     {
-        $stubName = 'Factory';
-        $path = database_path("/factories/{$modelName}{$stubName}.php");
-
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
-        }
+        return !empty(File::glob(base_path("database/migrations/*_create_{$tableName}_table.php")));
     }
 
     /**
-     * Create request file.
+     * Register the table name on App\Constants\DatabaseTableConstant.
      *
      * @param string $modelName
      *
-     * @return void
+     * @return bool
      */
-    private function createRequestFile(string $modelName): void
+    private function addDatabaseTableConstant(string $modelName): bool
     {
-        $stubName = 'Request';
-        $path = app_path("Http/Requests/{$modelName}{$stubName}.php");
+        $path = base_path('app/Constants/DatabaseTableConstant.php');
+        $fileContents = $this->readFile($path);
 
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
+        if ($fileContents === null) {
+            return false;
         }
+
+        $constantName = ModelName::tableConstantName($modelName);
+
+        if (str_contains($fileContents, " {$constantName} =")) {
+            $this->line("{$constantName} is already registered in {$path}. Skipping...");
+
+            return true;
+        }
+
+        $constant = "    const string {$constantName} = '" . ModelName::tableName($modelName) . "';";
+        $updatedFileContents = PhpSourceEditor::insertBeforeClosingBrace($fileContents, $constant);
+
+        if ($updatedFileContents === null) {
+            $this->error("Could not locate the closing brace of {$path}. Add {$constantName} manually.");
+
+            return false;
+        }
+
+        return $this->writeFile($path, $updatedFileContents, 'updated');
     }
 
     /**
-     * Create resource file.
+     * Register the resource routes on routes/api.php.
      *
      * @param string $modelName
      *
-     * @return void
+     * @return bool
      */
-    private function createResourceFile(string $modelName): void
+    private function addRoutes(string $modelName): bool
     {
-        $stubName = 'Resource';
-        $path = app_path("Http/Resources/{$modelName}{$stubName}.php");
+        $path = base_path('routes/api.php');
+        $fileContents = $this->readFile($path);
 
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
-        }
-    }
-
-    /**
-     * Create data file.
-     *
-     * @param string $modelName
-     *
-     * @return void
-     */
-    private function createDataFile(string $modelName): void
-    {
-        $stubName = 'Data';
-        $path = app_path("Data/{$modelName}{$stubName}.php");
-
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
+        if ($fileContents === null) {
+            return false;
         }
 
-        $stubName = 'FilterData';
-        $path = app_path("Data/{$modelName}{$stubName}.php");
+        $routePrefix = ModelName::routePrefix($modelName);
 
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
-        }
-    }
+        if (str_contains($fileContents, "Route::prefix('{$routePrefix}')")) {
+            $this->line("Routes for '{$routePrefix}' are already registered in {$path}. Skipping...");
 
-    /**
-     * Create test file.
-     *
-     * @param string $modelName
-     *
-     * @return void
-     */
-    private function createTestFile(string $modelName): void
-    {
-        $stubName = 'UnitTest';
-        $path = base_path("tests/Unit/{$modelName}{$stubName}.php");
-
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
+            return true;
         }
 
-        $stubName = 'FeatureTest';
-        $path = base_path("tests/Feature/{$modelName}{$stubName}.php");
-
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
-        }
-    }
-
-    /**
-     * Create controller file.
-     *
-     * @param string $modelName
-     *
-     * @return void
-     */
-    private function createControllerFile(string $modelName): void
-    {
-        $stubName = 'Controller';
-        $path = app_path("Http/Controllers/{$modelName}{$stubName}.php");
-
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
-        }
-    }
-
-    /**
-     * Create service file.
-     *
-     * @param string $modelName
-     *
-     * @return void
-     */
-    private function createServiceFile(string $modelName): void
-    {
-        $stubName = 'Service';
-        $path = app_path("Services/{$modelName}{$stubName}.php");
-
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
-        }
-    }
-
-    /**
-     * Create repository file.
-     *
-     * @param string $modelName
-     *
-     * @return void
-     */
-    private function createRepositoryFile(string $modelName): void
-    {
-        $stubName = 'Repository';
-        $path = app_path("Repositories/{$modelName}{$stubName}.php");
-
-        if (File::exists($path)) {
-            $this->error("{$path} already exists. Skipping...");
-        } else {
-            $file = $this->getStubFile($modelName, $stubName);
-            file_put_contents($path, $file);
-            $this->info("{$path} successfully created" . PHP_EOL);
-        }
-    }
-
-    /**
-     * Add route.
-     *
-     * @param string $modelName
-     *
-     * @return void
-     */
-    private function addRoute(string $modelName): void
-    {
         $controllerClass = "{$modelName}Controller";
-        $useStatement = "use App\Http\Controllers\\{$controllerClass};\n";
-        $resourceName = Str::lower(Str::kebab(Str::plural($modelName)));
-        $modelIdName = lcfirst($modelName) . 'Id';
-        $controllerClassName = "{$controllerClass}::class";
+        $useStatement = "use App\\Http\\Controllers\\{$controllerClass};\n";
 
-        $routeTemplate = <<<ROUTES
-        \n\t// {$modelName} routes
-        \tRoute::prefix('{$resourceName}')->group(function () {
-            \tRoute::post('/', [{$controllerClassName}, 'create']);
-            \tRoute::get('/', [{$controllerClassName}, 'getPaginated']);
-            \tRoute::get('/all', [{$controllerClassName}, 'getAll']);
-            \tRoute::get('/{{$modelIdName}}', [{$controllerClassName}, 'getById'])->where('{$modelIdName}', config('custom.numeric_regex'));
-            \tRoute::put('/{{$modelIdName}}', [{$controllerClassName}, 'update'])->where('{$modelIdName}', config('custom.numeric_regex'));
-            \tRoute::delete('/{{$modelIdName}}', [{$controllerClassName}, 'delete'])->where('{$modelIdName}', config('custom.numeric_regex'));
-        \t});
-        ROUTES;
-
-        $routeFilePath = base_path('routes/api.php');
-        $fileContents = file_get_contents($routeFilePath);
-
-        // Check if the use statement for the controller is already there, if not, add it
         if (!str_contains($fileContents, $useStatement)) {
-            $lastUsePosition = strrpos($fileContents, "use ");
-            $insertPositionUseStatement = strpos($fileContents, "\n", $lastUsePosition) + 1;
-            $fileContents = substr_replace($fileContents, $useStatement, $insertPositionUseStatement, 0);
+            $fileContents = PhpSourceEditor::insertAfterLastUseStatement($fileContents, $useStatement);
         }
 
-        // Find the position of the closing tag of the auth:api middleware group
-        $closingMiddlewareTagPosition = strrpos($fileContents, "});");
+        $routes = $this->buildRoutes($modelName, $controllerClass, $routePrefix);
+        $updatedFileContents = PhpSourceEditor::insertBeforeLastRouteGroupClose($fileContents, $routes);
 
-        if ($closingMiddlewareTagPosition !== false) {
-            // Insert the new routes before the closing tag
-            $newFileContents = substr_replace($fileContents, $routeTemplate . "\n", $closingMiddlewareTagPosition, 0);
+        if ($updatedFileContents === null) {
+            $this->error("Could not locate the route group closing in {$path}. Add the {$routePrefix} routes manually.");
 
-            // Write the new content back into the file
-            file_put_contents($routeFilePath, $newFileContents);
-            $this->info("{$routeFilePath} successfully updated" . PHP_EOL);
-        } else {
-            echo "The position to insert the new routes was not found.";
+            return false;
         }
+
+        return $this->writeFile($path, $updatedFileContents, 'updated');
     }
 
     /**
-     * Get stub file.
+     * Build the route block for a resource.
      *
      * @param string $modelName
-     * @param string $stubName
+     * @param string $controllerClass
+     * @param string $routePrefix
      *
      * @return string
      */
-    private function getStubFile(string $modelName, string $stubName): string
+    private function buildRoutes(string $modelName, string $controllerClass, string $routePrefix): string
     {
-        $search = [
-            '{{modelName}}',
-            '{{modelNamePlural}}',
-            '{{modelNameCamelCase}}',
-            '{{modelNameCamelCasePlural}}',
-            '{{modelNameKebabCase}}',
-            '{{modelNameKebabCasePlural}}',
-            '{{modelNameUpperKebabCasePlural}}',
-            '{{modelNameSnakeCase}}',
-            '{{modelNameSnakeCasePlural}}',
-            '{{modelNameUpperSnakeCasePlural}}',
-            '{{modelNameSpaceCase}}',
-            '{{modelNameSpaceCasePlural}}',
-            '{{modelNameUpperWordSpaceCase}}',
-            '{{modelNameUpperFirstSpaceCase}}',
-            '{{modelNameId}}'
-        ];
+        $modelIdName = lcfirst($modelName) . 'Id';
+        $controllerClassName = "{$controllerClass}::class";
 
-        $modelNamePlural = Str::plural($modelName);
-        $modelNameCamelCase = Str::camel($modelName);
-        $modelNameCamelCasePlural = Str::camel($modelNamePlural);
-        $modelNameKebabCase = Str::kebab($modelName);
-        $modelNameKebabCasePlural = Str::kebab($modelNamePlural);
-        $modelNameUpperKebabCasePlural = Str::upper($modelNameKebabCasePlural);
-        $modelNameSnakeCase = Str::snake($modelName);
-        $modelNameSnakeCasePlural = Str::snake($modelNamePlural);
-        $modelNameUpperSnakeCasePlural = Str::upper($modelNameSnakeCasePlural);
-        $modelNameSpaceCase = Str::replace('_', ' ', $modelNameSnakeCase);
-        $modelNameSpaceCasePlural = Str::replace('_', ' ', $modelNameSnakeCasePlural);
-        $modelNameUpperWordSpaceCase = ucwords($modelNameSpaceCase);
-        $modelNameUpperFirstSpaceCase = ucfirst($modelNameSpaceCase);
-        $modelNameId = "{$modelNameCamelCase}Id";
+        return <<<ROUTES
 
-        $replace = [
-            $modelName,
-            $modelNamePlural,
-            $modelNameCamelCase,
-            $modelNameCamelCasePlural,
-            $modelNameKebabCase,
-            $modelNameKebabCasePlural,
-            $modelNameUpperKebabCasePlural,
-            $modelNameSnakeCase,
-            $modelNameSnakeCasePlural,
-            $modelNameUpperSnakeCasePlural,
-            $modelNameSpaceCase,
-            $modelNameSpaceCasePlural,
-            $modelNameUpperWordSpaceCase,
-            $modelNameUpperFirstSpaceCase,
-            $modelNameId
-        ];
+            // {$modelName} routes
+            Route::prefix('{$routePrefix}')->group(function () {
+                Route::post('/', [{$controllerClassName}, 'create']);
+                Route::get('/', [{$controllerClassName}, 'getPaginated']);
+                Route::get('/all', [{$controllerClassName}, 'getAll']);
+                Route::get('/{{$modelIdName}}', [{$controllerClassName}, 'getById'])->where('{$modelIdName}', config('custom.numeric_regex'));
+                Route::put('/{{$modelIdName}}', [{$controllerClassName}, 'update'])->where('{$modelIdName}', config('custom.numeric_regex'));
+                Route::delete('/{{$modelIdName}}', [{$controllerClassName}, 'delete'])->where('{$modelIdName}', config('custom.numeric_regex'));
+            });
 
-        $path = __DIR__ . '/../Stubs/' . $stubName . '.stub';
-        $subject = file_get_contents($path);
+        ROUTES;
+    }
 
-        return str_replace($search, $replace, $subject);
+    /**
+     * Render a stub and write it to its destination.
+     *
+     * @param string $modelName
+     * @param string $stubName
+     * @param string $relativePath
+     *
+     * @return bool
+     */
+    private function createFileFromStub(string $modelName, string $stubName, string $relativePath): bool
+    {
+        $path = base_path(str_replace('{{modelName}}', $modelName, $relativePath));
+
+        if (File::exists($path)) {
+            $this->line("{$path} already exists. Skipping...");
+
+            return true;
+        }
+
+        $stub = $this->readFile(__DIR__ . "/../Stubs/{$stubName}.stub");
+
+        if ($stub === null) {
+            return false;
+        }
+
+        $tokens = ModelName::tokens($modelName);
+        $contents = str_replace(array_keys($tokens), array_values($tokens), $stub);
+
+        File::ensureDirectoryExists(dirname($path));
+
+        return $this->writeFile($path, $contents, 'created');
+    }
+
+    /**
+     * Read a file, reporting a usable error when it is missing or unreadable.
+     *
+     * @param string $path
+     *
+     * @return string|null
+     */
+    private function readFile(string $path): ?string
+    {
+        if (!File::exists($path)) {
+            $this->error("{$path} was not found.");
+
+            return null;
+        }
+
+        $contents = file_get_contents($path);
+
+        if ($contents === false) {
+            $this->error("{$path} could not be read.");
+
+            return null;
+        }
+
+        return $contents;
+    }
+
+    /**
+     * Write a file, reporting success only when the write actually happened.
+     *
+     * @param string $path
+     * @param string $contents
+     * @param string $action
+     *
+     * @return bool
+     */
+    private function writeFile(string $path, string $contents, string $action): bool
+    {
+        if (file_put_contents($path, $contents) === false) {
+            $this->error("{$path} could not be written.");
+
+            return false;
+        }
+
+        $this->info("{$path} successfully {$action}" . PHP_EOL);
+
+        return true;
     }
 
 }
